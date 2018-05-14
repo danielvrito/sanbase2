@@ -63,6 +63,7 @@ defmodule Sanbase.Notifications.CheckPrices do
       )
   end
 
+  # TODO FIXXXXXXXx
   defp price_ticker(%Project{ticker: ticker}, counter_currency) do
     "#{ticker}_#{String.upcase(counter_currency)}"
   end
