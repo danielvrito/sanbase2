@@ -16,6 +16,9 @@ defmodule Sanbase.Prices.Utils do
     end
   end
 
+  defguard is_zero(price)
+           when is_number(price) and price >= -1.0e-7 and price <= 1.0e-7
+
   @doc """
     Converts prices between currencies. Tries intermediate conversions with USD/BTC
     if data for direct conversion is not available.
@@ -26,9 +29,6 @@ defmodule Sanbase.Prices.Utils do
     {price_usd, _price_btc} = fetch_last_price_before(@bitcoin_measurement, timestamp)
     price_usd
   end
-
-  defguard is_zero(price)
-           when is_number(price) and price >= -1.0e-7 and price <= 1.0e-7
 
   def fetch_last_price_before("USD", "BTC", timestamp) do
     {_price_usd, price_btc} = fetch_last_price_before(@bitcoin_measurement, timestamp)
@@ -66,8 +66,7 @@ defmodule Sanbase.Prices.Utils do
     )
   end
 
-  def fetch_last_price_before(measurement_from, measurement_to, timestamp)
-      when measurement_to != "USD" and measurement_to != "BTC" do
+  def fetch_last_price_before(measurement_from, measurement_to, timestamp) do
     price =
       fetch_last_price_before_convert_via_intermediate(
         measurement_from,
@@ -113,7 +112,8 @@ defmodule Sanbase.Prices.Utils do
   defp fetch_last_price_usd_before_convert_via_btc(measurement, timestamp) do
     with {_price_usd, price_btc} <- fetch_last_price_before(measurement, timestamp),
          false <- is_nil(price_btc),
-         {price_btc_usd, _price_btc_btc} <- fetch_last_price_before("BTC_bitcoin", timestamp),
+         {price_btc_usd, _price_btc_btc} <-
+           fetch_last_price_before(@bitcoin_measurement, timestamp),
          false <- is_nil(price_btc_usd) do
       price_btc * price_btc_usd
     else
@@ -124,7 +124,8 @@ defmodule Sanbase.Prices.Utils do
   defp fetch_last_price_btc_before_convert_via_usd(measurement, timestamp) do
     with {price_usd, _price_btc} <- fetch_last_price_before(measurement, timestamp),
          false <- is_nil(price_usd) or is_zero(price_usd),
-         {price_btc_usd, _price_btc_btc} <- fetch_last_price_before("BTC_bitcoin", timestamp),
+         {price_btc_usd, _price_btc_btc} <-
+           fetch_last_price_before(@bitcoin_measurement, timestamp),
          false <- is_nil(price_btc_usd) or is_zero(price_btc_usd) do
       price_usd / price_btc_usd
     else
@@ -134,9 +135,7 @@ defmodule Sanbase.Prices.Utils do
 
   def convert_amount(nil, _currency_from, _measurement_to, _timestamp), do: nil
 
-  def convert_amount(amount, currency, currency, _timestamp) do
-    Decimal.to_float(amount)
-  end
+  def convert_amount(amount, currency, currency, _timestamp), do: Decimal.to_float(amount)
 
   def convert_amount(
         amount,
